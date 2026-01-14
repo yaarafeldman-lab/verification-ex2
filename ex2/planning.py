@@ -85,7 +85,7 @@ def print_plan(city_packages, city_airplanes, airplane_packages):
     print()
 
 
-def get_transport_plan(nc, np, na, src, dst, start):
+def define_sorts():
     #defining sorts and functions
     C = DeclareSort('C')
     P = DeclareSort('P')
@@ -93,27 +93,107 @@ def get_transport_plan(nc, np, na, src, dst, start):
     at = Function('at', P, C, IntSort(), BoolSort())
     on = Function('on', P, A, IntSort(), BoolSort())
     loc = Function('loc', A, IntSort(), C)
-    
+    return C, P, A, at, loc, on
+
+def decalre_consts(nc, np, na, C, P, A):
     #declare constants for cities, airplanes and packages
     cities = [Const(f'C{i}', C) for i in range(nc)]
     packages = [Const(f'P{i}', P) for i in range(np)]
     airplanes = [Const(f'A{i}', A) for i in range(na)]
+    return cities, packages, airplanes
+
+
+def basic_start_end_conditions(packages, cities, airplanes, at, on, loc, src, dst, start, t_finish, s):
+    #add conditions for source and destination for all packages
+    for i,p in enumerate(packages):
+        s.add(at(p, cities[src[i]], 0))
+        s.add(at(p, cities[dst[i]], t_finish))
     
+    #add conditions for start position of planes
+    for i,a in enumerate(airplanes):
+        s.add(loc(a, 0) == cities[start[i]])
+
+
+def add_package_constraints(s, p, t, cities, airplanes, at, on, loc):
+    #being on one plane/at one city
+    vars_for_at_cities = [at(p, c, t) for c in cities]
+    vars_for_on_planes = [on(p, a, t) for a in airplanes]
+    s.add(PbEq([(v, 1) for v in vars_for_at_cities+vars_for_on_planes], 1))
+    #more package constraints: 
+    if t == 0: return
+    # if a package is at a city then it either stayed there or was unloaded there.
+    for c in cities:
+        was_unloaded_from_a_plane = Or(*[And(
+            on(p,a,t-1), loc(a,t-1) == c, loc(a,t) == c
+        ) for a in airplanes])
+        
+        s.add(Implies(
+            at(p, c, t),
+            Or(
+                at(p, c, t-1),
+                was_unloaded_from_a_plane
+            )
+        ))
+        
+    # if a package is on a plane it either stayed there or was loaded there
+    for a in airplanes:
+        was_loaded_in_a_city = Or(*[And(
+            at(p,c,t-1), loc(a,t-1) == c, loc(a,t) == c
+        ) for c in cities])
+        
+        s.add(Implies(
+            on(p, a, t),
+            Or(
+                on(p, a, t-1),
+                was_loaded_in_a_city
+            )
+        ))
+
+
+
+def extract_plan_for_model(model, cities, packages, airplanes, t_finish, at, on, loc):
+    np = len(packages)
+    na = len(airplanes)
     
-    t_finish = 0 #todo 
-    t_limit = np * 4 #todo
+    city_packages = [
+        [
+            [i for i in range(np) if is_true(model.eval(at(packages[i], c, t)))] 
+            for c in cities
+        ] 
+        for t in range(t_finish + 1)
+    ]
     
+    city_airplanes = [
+        [
+            [i for i in range(na) if is_true(model.eval(loc(airplanes[i], t) == c))] 
+            for c in cities
+        ] 
+        for t in range(t_finish + 1)
+    ]
+    
+    airplane_packages = [
+        [
+            [i for i in range(np) if is_true(model.eval(on(packages[i], a, t)))] 
+            for a in airplanes
+        ] 
+        for t in range(t_finish + 1)
+    ]
+    return city_packages, city_airplanes, airplane_packages    
+
+
+def get_transport_plan(nc, np, na, src, dst, start):
+    C, P, A, at, loc, on = define_sorts()
+    cities, packages, airplanes = decalre_consts(nc, np, na, C, P, A)
+    
+    t_finish = 0  
+    # the maximum number of steps is 4 per package - ai[lane arrives, airplane loads, aiplane flies, airplane unloads
+    t_limit = np * 4 
     model = None
+    
     while model is None and t_finish <= t_limit:
         s = Solver()
-        #add conditions for source and destination for all packages
-        for i,p in enumerate(packages):
-            s.add(at(p, cities[src[i]], 0))
-            s.add(at(p, cities[dst[i]], t_finish))
-            
-        #add conditions for start position of planes
-        for i,a in enumerate(airplanes):
-            s.add(loc(a, 0) == cities[start[i]])
+        
+        basic_start_end_conditions(packages, cities, airplanes, at, on, loc, src, dst, start, t_finish, s)
         
         #add condition for plane to be at one city
         for a in airplanes:
@@ -121,42 +201,11 @@ def get_transport_plan(nc, np, na, src, dst, start):
                 vars_for_in_cities = [loc(a,t) == c for c in cities]
                 s.add(PbEq([(v, 1) for v in vars_for_in_cities], 1))
         
-        #add conditions for package being on one plane/at one city
+        #add conditions for packages 
         for p in packages:
             for t in range(t_finish + 1):
-                vars_for_at_cities = [at(p, c, t) for c in cities]
-                vars_for_on_planes = [on(p, a, t) for a in airplanes]
-                s.add(PbEq([(v, 1) for v in vars_for_at_cities+vars_for_on_planes], 1))
-                #add package constraints: 
-                if t == 0: continue
-                # if a package is at a city then it either stayed there or was unloaded there.
-                for c in cities:
-                    was_unloaded_from_a_plane = Or(*[And(
-                        on(p,a,t-1), loc(a,t-1) == c, loc(a,t) == c
-                    ) for a in airplanes])
-                    
-                    s.add(Implies(
-                        at(p, c, t),
-                        Or(
-                            at(p, c, t-1),
-                            was_unloaded_from_a_plane
-                        )
-                    ))
-        
-                # if a package is on a plane it either stayed there or was loaded there
-                for a in airplanes:
-                    was_loaded_in_a_city = Or(*[And(
-                        at(p,c,t-1), loc(a,t-1) == c, loc(a,t) == c
-                    ) for c in cities])
-                    
-                    s.add(Implies(
-                        on(p, a, t),
-                        Or(
-                            on(p, a, t-1),
-                            was_loaded_in_a_city
-                        )
-                    ))
-        
+                add_package_constraints(s, p, t, cities, airplanes, at, on, loc)
+                
         res = s.check()
         if res == sat:
             print("SAT\n", t_finish)
@@ -165,39 +214,14 @@ def get_transport_plan(nc, np, na, src, dst, start):
             raise Exception('Got unknown from Z3')
         else:
             assert res == unsat
-            # print("UNSAT, increasing t_max\n")
             t_finish += 1
 
     if model is None:
         print("Time limit reached")
         return None
     else:
-        
-        city_packages = [
-            [
-                [i for i in range(np) if is_true(model.eval(at(packages[i], c, t)))] 
-                for c in cities
-            ] 
-            for t in range(t_finish + 1)
-        ]
-        
-        city_airplanes = [
-            [
-                [i for i in range(na) if is_true(model.eval(loc(airplanes[i], t) == c))] 
-                for c in cities
-            ] 
-            for t in range(t_finish + 1)
-        ]
-        
-        airplane_packages = [
-            [
-                [i for i in range(np) if is_true(model.eval(on(packages[i], a, t)))] 
-                for a in airplanes
-            ] 
-            for t in range(t_finish + 1)
-        ]
+        return extract_plan_for_model(model, cities, packages, airplanes, t_finish, at, on, loc)
 
-        return city_packages, city_airplanes, airplane_packages
 
 
 
