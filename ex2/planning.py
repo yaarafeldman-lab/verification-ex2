@@ -212,6 +212,7 @@ def get_transport_plan(nc, np, na, src, dst, start):
             
         if t_finish > 0:
             opt.minimize(Sum(airplane_moves)) 
+            # we are minimizing within the constraints of t_finish, so the time will still remain optimized
         
         res = opt.check()
         if res == sat:
