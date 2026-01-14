@@ -231,6 +231,85 @@ def get_transport_plan(nc, np, na, src, dst, start):
         return extract_plan_from_model(model, cities, packages, airplanes, t_finish, at, on, loc)
 
 
+def test_trivial():
+    example_problem = {
+        "nc": 1,
+        "np": 1,
+        "na": 1,
+        "src": [0],
+        "dst": [0],
+        "start": [0],
+    }
+
+    print("\n=== Trivial test ===")
+    print_problem(**example_problem)
+    city_packages, city_airplanes, airplane_packages = get_transport_plan(**example_problem)
+    print_plan(city_packages, city_airplanes, airplane_packages)
+    
+def test_single_package():
+    example_problem = {
+        "nc": 2,
+        "np": 1,
+        "na": 1,
+        "src": [0],
+        "dst": [1],
+        "start": [0],
+    }
+
+    print("\n=== Single package ===")
+    print_problem(**example_problem)
+    city_packages, city_airplanes, airplane_packages = get_transport_plan(**example_problem)
+    print_plan(city_packages, city_airplanes, airplane_packages)
+
+def test_two_packages_one_plane():
+    example_problem = {
+        "nc": 2,
+        "np": 2,
+        "na": 1,
+        "src": [0, 0],
+        "dst": [1, 1],
+        "start": [0],
+    }
+
+    print("\n=== Two packages, one airplane ===")
+    print_problem(**example_problem)
+    city_packages, city_airplanes, airplane_packages = get_transport_plan(**example_problem)
+    print_plan(city_packages, city_airplanes, airplane_packages)
+
+def test_two_airplanes():
+    example_problem = {
+        "nc": 3,
+        "np": 2,
+        "na": 2,
+        "src": [0, 2],
+        "dst": [2, 0],
+        "start": [1, 1],
+    }
+
+    print("\n=== Two airplanes ===")
+    print_problem(**example_problem)
+    city_packages, city_airplanes, airplane_packages = get_transport_plan(**example_problem)
+    print_plan(city_packages, city_airplanes, airplane_packages)
+
+def test_sequential_moves():
+    """
+    One airplane, two packages that start in different cities and have different destinations.
+    The airplane must move each package separately.
+    """
+    example_problem = {
+        "nc": 4,         # 4 cities
+        "np": 2,         # 2 packages
+        "na": 1,         # 1 airplane
+        "src": [1, 2],   # P0 starts at C1, P1 starts at C2
+        "dst": [3, 0],   # P0 goes to C3, P1 goes to C0
+        "start": [0],    # airplane starts at C0
+    }
+
+    print("\n=== Sequential moves test ===")
+    print_problem(**example_problem)
+    city_packages, city_airplanes, airplane_packages = get_transport_plan(**example_problem)
+    print_plan(city_packages, city_airplanes, airplane_packages)
+
 
 if __name__ == '__main__':
 
@@ -239,6 +318,8 @@ if __name__ == '__main__':
     city_packages, city_airplanes, airplane_packages = get_transport_plan(**example_problem)
     print_plan(city_packages, city_airplanes, airplane_packages)
 
-    #
-    # Add more tests here...
-    #
+    test_trivial()
+    test_single_package()
+    test_two_packages_one_plane()
+    test_two_airplanes()
+    test_sequential_moves()
