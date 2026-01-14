@@ -151,7 +151,7 @@ def add_package_constraints(s, p, t, cities, airplanes, at, on, loc):
 
 
 
-def extract_plan_for_model(model, cities, packages, airplanes, t_finish, at, on, loc):
+def extract_plan_from_model(model, cities, packages, airplanes, t_finish, at, on, loc):
     np = len(packages)
     na = len(airplanes)
     
@@ -185,31 +185,38 @@ def get_transport_plan(nc, np, na, src, dst, start):
     C, P, A, at, loc, on = define_sorts()
     cities, packages, airplanes = decalre_consts(nc, np, na, C, P, A)
     
-    t_finish = 0  
-    # the maximum number of steps is 4 per package - ai[lane arrives, airplane loads, aiplane flies, airplane unloads
-    t_limit = np * 4 
+    t_finish = 0
+    # the maximum number of steps is 4 per package that has an availabl airplane - airplane arrives, airplane loads, aiplane flies, airplane unloads
+    t_limit = (np - na + 1) * 4 
     model = None
     
     while model is None and t_finish <= t_limit:
-        s = Solver()
+        opt = Optimize() # this is used to minimize airplane moves
+        airplane_moves = []
         
-        basic_start_end_conditions(packages, cities, airplanes, at, on, loc, src, dst, start, t_finish, s)
-        
+        basic_start_end_conditions(packages, cities, airplanes, at, on, loc, src, dst, start, t_finish, opt)
         #add condition for plane to be at one city
         for a in airplanes:
             for t in range(t_finish + 1):
                 vars_for_in_cities = [loc(a,t) == c for c in cities]
-                s.add(PbEq([(v, 1) for v in vars_for_in_cities], 1))
-        
+                opt.add(PbEq([(v, 1) for v in vars_for_in_cities], 1))
+                if t > 0:
+                    #for optimization:
+                    airplane_moves.append(If(loc(a, t) == loc(a, t - 1), 0, 1))# the plane adds a move if it moved
+                
         #add conditions for packages 
         for p in packages:
             for t in range(t_finish + 1):
-                add_package_constraints(s, p, t, cities, airplanes, at, on, loc)
-                
-        res = s.check()
+                add_package_constraints(opt, p, t, cities, airplanes, at, on, loc)
+            
+            
+        if t_finish > 0:
+            opt.minimize(Sum(airplane_moves)) 
+        
+        res = opt.check()
         if res == sat:
             print("SAT\n", t_finish)
-            model = s.model()
+            model = opt.model()
         elif res == unknown:
             raise Exception('Got unknown from Z3')
         else:
@@ -220,21 +227,15 @@ def get_transport_plan(nc, np, na, src, dst, start):
         print("Time limit reached")
         return None
     else:
-        return extract_plan_for_model(model, cities, packages, airplanes, t_finish, at, on, loc)
-
-
+        return extract_plan_from_model(model, cities, packages, airplanes, t_finish, at, on, loc)
 
 
 
 if __name__ == '__main__':
+
     print_problem(**example_problem)
     print_plan(**example_solution)
-
-    #
-    # Uncomment after you implement get_transport_plan:
-    #
     city_packages, city_airplanes, airplane_packages = get_transport_plan(**example_problem)
-    
     print_plan(city_packages, city_airplanes, airplane_packages)
 
     #
