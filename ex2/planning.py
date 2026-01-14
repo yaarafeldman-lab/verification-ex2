@@ -309,6 +309,24 @@ def test_sequential_moves():
     print_problem(**example_problem)
     city_packages, city_airplanes, airplane_packages = get_transport_plan(**example_problem)
     print_plan(city_packages, city_airplanes, airplane_packages)
+    
+def test_minimal_moves():
+    """
+    check that if there are a few packages that need to get to the same place the same plane takes them
+    """
+    example_problem = {
+        "nc": 2,         # 2 cities
+        "np": 4,         # 4 packages
+        "na": 4,         # 4 airplane
+        "src": [0, 0, 0, 0],   # all ctart at C0
+        "dst": [1, 1, 1, 1],   # all go to C1
+        "start": [0, 0, 0, 0],    # airplanes start at C0
+    }
+
+    print("\n=== Sequential moves test ===")
+    print_problem(**example_problem)
+    city_packages, city_airplanes, airplane_packages = get_transport_plan(**example_problem)
+    print_plan(city_packages, city_airplanes, airplane_packages)
 
 
 if __name__ == '__main__':
@@ -323,3 +341,4 @@ if __name__ == '__main__':
     test_two_packages_one_plane()
     test_two_airplanes()
     test_sequential_moves()
+    test_minimal_moves()
