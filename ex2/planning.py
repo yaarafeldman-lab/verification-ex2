@@ -186,12 +186,12 @@ def get_transport_plan(nc, np, na, src, dst, start):
     cities, packages, airplanes = decalre_consts(nc, np, na, C, P, A)
     
     t_finish = 0
-    # the maximum number of steps is 4 per package that has an availabl airplane - airplane arrives, airplane loads, aiplane flies, airplane unloads
+    # the maximum number of steps is 4 per package that has an available airplane - airplane arrives, airplane loads, aiplane flies, airplane unloads
     t_limit = (np - na + 1) * 4 
     model = None
     
     while model is None and t_finish <= t_limit:
-        opt = Optimize() # this is used to minimize airplane moves
+        opt = Optimize() # this is used to minimize airplane moves, for the bonus question
         airplane_moves = []
         
         basic_start_end_conditions(packages, cities, airplanes, at, on, loc, src, dst, start, t_finish, opt)
@@ -336,6 +336,7 @@ if __name__ == '__main__':
     city_packages, city_airplanes, airplane_packages = get_transport_plan(**example_problem)
     print_plan(city_packages, city_airplanes, airplane_packages)
 
+    #more tests
     test_trivial()
     test_single_package()
     test_two_packages_one_plane()
