@@ -34,6 +34,7 @@ small_E = [
 
 def get_k_edge_coloring(k, V, E):
     assert V == list(range(len(V)))
+    #initializing
     edge_indices = range(len(E))
     colors = list(range(k))
     variables = [[Bool('e_{}_color_{}'.format(e, c)) for c in colors] for e in edge_indices]
@@ -80,6 +81,7 @@ def get_k_edge_coloring(k, V, E):
         m = s.model()
         coloring = dict()
         for e in edge_indices:
+            # find the right color
             for c in colors:
                 if is_true(m[variables[e][c]]):
                     coloring[E[e]] = c
