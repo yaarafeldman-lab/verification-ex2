@@ -138,7 +138,7 @@ def add_package_constraints(s, p, t, cities, airplanes, at, on, loc):
     # if a package is on a plane it either stayed there or was loaded there
     for a in airplanes:
         was_loaded_in_a_city = Or(*[And(
-            at(p,c,t-1), loc(a,t-1) == c, loc(a,t) == c
+            at(p,c,t-1), loc(a,t-1) == c, loc(a,t) == c #loc(a,t-1) == c, loc(a,t) == c means it stayed
         ) for c in cities])
         
         s.add(Implies(
@@ -182,12 +182,15 @@ def extract_plan_from_model(model, cities, packages, airplanes, t_finish, at, on
 
 
 def get_transport_plan(nc, np, na, src, dst, start):
+    if (np < 0 or nc < 0 or na < 0 or (na == 0 and np > 0)): 
+        #illegal input
+        return None
     C, P, A, at, loc, on = define_sorts()
     cities, packages, airplanes = decalre_consts(nc, np, na, C, P, A)
     
     t_finish = 0
-    # the maximum number of steps is 4 per package that has an available airplane - airplane arrives, airplane loads, aiplane flies, airplane unloads
-    t_limit = (np - na + 1) * 4 
+    # the maximum number of steps is 4 per package - airplane arrives, airplane loads, aiplane flies, airplane unloads
+    t_limit = np * 4 
     model = None
     
     while model is None and t_finish <= t_limit:
@@ -224,13 +227,14 @@ def get_transport_plan(nc, np, na, src, dst, start):
             assert res == unsat
             t_finish += 1
 
+    # the loop has finished ma=eaning that either we reached the time limit (not suuposed to happen) or found a model
     if model is None:
         print("Time limit reached")
         return None
     else:
         return extract_plan_from_model(model, cities, packages, airplanes, t_finish, at, on, loc)
 
-
+#tests:
 def test_trivial():
     example_problem = {
         "nc": 1,
